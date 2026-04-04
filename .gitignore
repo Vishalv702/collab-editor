@@ -1,0 +1,28 @@
+# ── Dependencies ──────────────────────────────────────
+node_modules/
+
+# ── Environment files (NEVER commit these) ────────────
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+
+# ── Build output ──────────────────────────────────────
+dist/
+build/
+frontend/dist/
+
+# ── OS / Editor ───────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Logs ──────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Misc ──────────────────────────────────────────────
+.cache/
+coverage/

@@ -1,0 +1,24 @@
+{
+  "name": "collab-editor-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev":     "vite",
+    "build":   "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "quill":            "^1.3.7",
+    "react":            "^18.2.0",
+    "react-dom":        "^18.2.0",
+    "react-router-dom": "^6.21.1",
+    "socket.io-client": "^4.6.1",
+    "uuid":             "^9.0.0",
+    "y-quill":          "^0.1.5",
+    "yjs":              "^13.6.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite":                 "^5.0.8"
+  }
+}
