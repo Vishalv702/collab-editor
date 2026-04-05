@@ -34,11 +34,11 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
     ydocRef.current = ydoc;
     const ytext = ydoc.getText('quill');
 
-    // Bind Yjs ↔ Quill (must happen before any Y.applyUpdate calls)
+    // Bind Yjs ↔ Quill
     const binding = new QuillBinding(ytext, quill);
     bindingRef.current = binding;
 
-    // Join document room — guarded to prevent duplicate joins
+    // Join room
     const joinDocument = () => {
       if (hasJoined.current) return;
       hasJoined.current = true;
@@ -48,8 +48,7 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
       });
     };
 
-    // ── Event handlers ────────────────────────────────────────────────────
-
+    // Event handlers
     const onConnect = () => {
       setIsConnected(true);
       hasJoined.current = false;
@@ -66,7 +65,7 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
           Y.applyUpdate(ydoc, bytes);
           isApplyingRemote.current = false;
           return;
-        } catch { /* fall through to Delta */ }
+        } catch { /* fall through */ }
       }
       if (content?.ops?.length) quill.setContents(content);
       isApplyingRemote.current = false;
@@ -83,22 +82,28 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
       isApplyingRemote.current = false;
     };
 
-    const onUsersChanged   = (users) => setActiveUsers(users);
+    const onUsersChanged  = (users) => setActiveUsers(users);
 
-    const onCursorUpdate   = ({ socketId, name, color, range }) =>
+    const onCursorUpdate  = ({ socketId, name, color, range }) =>
       setRemoteCursors(prev => ({ ...prev, [socketId]: { name, color, range } }));
 
-    const onCursorRemove   = ({ socketId }) =>
-      setRemoteCursors(prev => { const n = { ...prev }; delete n[socketId]; return n; });
+    const onCursorRemove  = ({ socketId }) =>
+      setRemoteCursors(prev => {
+        const n = { ...prev };
+        delete n[socketId];
+        return n;
+      });
 
-    const onUserTyping     = ({ socketId, name, color, isTyping }) =>
+    const onUserTyping = ({ socketId, name, color, isTyping }) =>
       setTypingUsers(prev =>
         isTyping
-          ? prev.find(u => u.socketId === socketId) ? prev : [...prev, { socketId, name, color }]
+          ? prev.find(u => u.socketId === socketId)
+            ? prev
+            : [...prev, { socketId, name, color }]
           : prev.filter(u => u.socketId !== socketId)
       );
 
-    // Register — always off() first to prevent duplicates on hot-reload
+    // Remove old then add fresh listeners
     socket.off('connect',         onConnect);
     socket.off('disconnect',      onDisconnect);
     socket.off('load-document',   onLoadDocument);
@@ -117,12 +122,19 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
     socket.on('cursor-remove',   onCursorRemove);
     socket.on('user-typing',     onUserTyping);
 
-    setIsConnected(socket.connected);
+    // CRITICAL: socket.connected may already be true when this runs
+    // because autoConnect:true connects immediately at import time.
+    // We must check and handle both cases here.
+    if (socket.connected) {
+      // Already connected — set state and join immediately
+      setIsConnected(true);
+      joinDocument();
+    } else {
+      // Not connected yet — onConnect will fire when ready
+      setIsConnected(false);
+    }
 
-    // Join now if already connected, else wait for onConnect
-    if (socket.connected) joinDocument();
-
-    // Observe local Yjs edits and relay to peers
+    // Observe local Yjs edits → relay to peers
     const onYjsUpdate = (update) => {
       if (isApplyingRemote.current) return;
       socket.emit('send-changes', {
@@ -140,7 +152,7 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
 
     ydoc.on('update', onYjsUpdate);
 
-    // Cursor and typing tracking
+    // Cursor and typing
     const onSelectionChange = (range) => {
       socket.emit('cursor-move', { documentId, range });
       if (range) {
@@ -179,7 +191,6 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
   return { isConnected, isSaving, activeUsers, typingUsers, remoteCursors };
 };
 
-
 const guestName = () => {
   const adj  = ['Swift','Bright','Calm','Bold','Keen','Wise','Deft'];
   const noun = ['Falcon','Maple','River','Stone','Cloud','Ember','Cedar'];
@@ -187,4 +198,3 @@ const guestName = () => {
 };
 
 export default useCollabEditor;
-
