@@ -4,7 +4,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://collab-editor-bac
 
 const socket = io(SOCKET_URL, {
   autoConnect: true,
-  transports: ['polling', 'websocket'],
+  transports: ['websocket','polling' ],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,

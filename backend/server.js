@@ -15,7 +15,7 @@ const CLIENT_URL = process.env.CLIENT_URL || '*';
 
 const io = new Server(server, {
   cors: { origin: CLIENT_URL, methods: ['GET', 'POST'], credentials: false },
-  transports: ['polling', 'websocket'],
+  transports: ['websocket','polling'],
   pingTimeout: 60000,
   pingInterval: 25000,
 });
@@ -36,6 +36,11 @@ app.use((err, _req, res, _next) => {
   console.error('[Error]', err.stack);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
+
+setInterval(() => {
+  fetch(`https://collab-editor-backend-yehr.onrender.com/health`)
+    .catch(() => {});
+}, 10 * 60 * 1000);
 
 registerSocketHandlers(io);
 
