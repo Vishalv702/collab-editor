@@ -1,10 +1,10 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://collab-editor-backend-yehr.onrender.com';
 
 const socket = io(SOCKET_URL, {
+  autoConnect: false,
   transports: ['polling', 'websocket'],
-  autoConnect: true,
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,

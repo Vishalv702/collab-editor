@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const BASE = import.meta.env.VITE_API_URL || 'https://collab-editor-backend-yehr.onrender.com/api';
 
 const request = async (method, path, body) => {
   const res = await fetch(`${BASE}${path}`, {
