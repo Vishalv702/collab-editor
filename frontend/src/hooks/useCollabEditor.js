@@ -24,21 +24,31 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
     setTimeout(() => setIsSaving(false), 800);
   }, [documentId]);
 
+  // Effect 1 — track connection state, independent of Quill being ready
   useEffect(() => {
-    if (!quillRef.current || !documentId) return;
+    const onConnect    = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+    socket.on('connect',    onConnect);
+    socket.on('disconnect', onDisconnect);
+    setIsConnected(socket.connected);
+    return () => {
+      socket.off('connect',    onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, []);
+
+  // Effect 2 — full collab setup, runs when connected AND Quill is ready
+  useEffect(() => {
+    if (!quillRef.current || !documentId || !isConnected) return;
 
     const quill = quillRef.current;
 
-    // Init Yjs document
-    const ydoc  = new Y.Doc();
+    const ydoc    = new Y.Doc();
     ydocRef.current = ydoc;
-    const ytext = ydoc.getText('quill');
-
-    // Bind Yjs ↔ Quill
+    const ytext   = ydoc.getText('quill');
     const binding = new QuillBinding(ytext, quill);
     bindingRef.current = binding;
 
-    // Join room
     const joinDocument = () => {
       if (hasJoined.current) return;
       hasJoined.current = true;
@@ -48,14 +58,7 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
       });
     };
 
-    // Event handlers
-    const onConnect = () => {
-      setIsConnected(true);
-      hasJoined.current = false;
-      joinDocument();
-    };
-
-    const onDisconnect = () => setIsConnected(false);
+    joinDocument();
 
     const onLoadDocument = ({ content, yjsState }) => {
       isApplyingRemote.current = true;
@@ -103,9 +106,6 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
           : prev.filter(u => u.socketId !== socketId)
       );
 
-    // Remove old then add fresh listeners
-    socket.off('connect',         onConnect);
-    socket.off('disconnect',      onDisconnect);
     socket.off('load-document',   onLoadDocument);
     socket.off('receive-changes', onReceiveChanges);
     socket.off('users-changed',   onUsersChanged);
@@ -113,8 +113,6 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
     socket.off('cursor-remove',   onCursorRemove);
     socket.off('user-typing',     onUserTyping);
 
-    socket.on('connect',         onConnect);
-    socket.on('disconnect',      onDisconnect);
     socket.on('load-document',   onLoadDocument);
     socket.on('receive-changes', onReceiveChanges);
     socket.on('users-changed',   onUsersChanged);
@@ -122,19 +120,6 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
     socket.on('cursor-remove',   onCursorRemove);
     socket.on('user-typing',     onUserTyping);
 
-    // CRITICAL: socket.connected may already be true when this runs
-    // because autoConnect:true connects immediately at import time.
-    // We must check and handle both cases here.
-    if (socket.connected) {
-      // Already connected — set state and join immediately
-      setIsConnected(true);
-      joinDocument();
-    } else {
-      // Not connected yet — onConnect will fire when ready
-      setIsConnected(false);
-    }
-
-    // Observe local Yjs edits → relay to peers
     const onYjsUpdate = (update) => {
       if (isApplyingRemote.current) return;
       socket.emit('send-changes', {
@@ -152,7 +137,6 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
 
     ydoc.on('update', onYjsUpdate);
 
-    // Cursor and typing
     const onSelectionChange = (range) => {
       socket.emit('cursor-move', { documentId, range });
       if (range) {
@@ -175,8 +159,6 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
       hasJoined.current = false;
       ydoc.off('update', onYjsUpdate);
       quill.off('selection-change', onSelectionChange);
-      socket.off('connect',         onConnect);
-      socket.off('disconnect',      onDisconnect);
       socket.off('load-document',   onLoadDocument);
       socket.off('receive-changes', onReceiveChanges);
       socket.off('users-changed',   onUsersChanged);
@@ -186,7 +168,7 @@ const useCollabEditor = ({ documentId, quillRef, userName }) => {
       binding.destroy();
       ydoc.destroy();
     };
-  }, [documentId, quillRef, userName, emitSave]);
+  }, [documentId, quillRef, userName, emitSave, isConnected]);
 
   return { isConnected, isSaving, activeUsers, typingUsers, remoteCursors };
 };
